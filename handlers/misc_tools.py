@@ -1,7 +1,6 @@
 import requests
 import random
 import html
-from config import Config
 from pyrogram import Client, filters
 
 # --- TEMP MAIL (NEW API) ---
