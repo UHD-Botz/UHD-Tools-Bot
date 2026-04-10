@@ -13,14 +13,20 @@ app = Client(
     plugins=dict(root="handlers") # Automatically loads all files in handlers folder!
 )
 
+Config.BOT_START_TIME = time.time()
+
 @app.on_message(filters.command("start"))
 async def start(client, message):
     user = message.from_user
-    is_new = await db.add_user(user.id, user.first_name)
     
-    if is_new:
-        await client.send_message(Config.LOG_CHANNEL, f"🚨 New User: {user.mention} (`{user.id}`)")
-        
+    # Error handler for MongoDB and Log Channel so bot doesn't freeze
+    try:
+        is_new = await db.add_user(user.id, user.first_name)
+        if is_new and Config.LOG_CHANNEL:
+            await client.send_message(Config.LOG_CHANNEL, f"🚨 New User: {user.mention} (`{user.id}`)")
+    except Exception as e:
+        print(f"DB/Log Error: {e}")
+
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("📄 PDF Tools", callback_data="help_pdf"),
          InlineKeyboardButton("🛠️ Misc Tools", callback_data="help_misc")]
@@ -49,7 +55,9 @@ async def help_misc(client, callback_query):
         "/tempmail - Get fake email\n"
         "/inbox <email> - Check emails\n"
         "/quiz - Play Math Quiz\n"
-        "/write <topic> - Auto write assignment paragraph"
+        "/write <topic> - Auto write assignment\n"
+        "/ping - Check Ping\n"
+        "/uptime - Check Live Uptime"
     )
 
 if __name__ == "__main__":
