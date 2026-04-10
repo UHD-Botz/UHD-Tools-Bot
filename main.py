@@ -16,11 +16,26 @@ app = Client(
 
 Config.BOT_START_TIME = time.time()
 
+# --- FORCE SUB CHECKER ---
+async def check_fsub(client, message):
+    if not Config.FORCE_SUB_CHANNEL:
+        return True # Agar config mein channel nahi diya, toh bypass
+    try:
+        await client.get_chat_member(Config.FORCE_SUB_CHANNEL, message.from_user.id)
+        return True
+    except UserNotParticipant:
+        btn = InlineKeyboardMarkup([[InlineKeyboardButton("📢 ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ", url=Config.FORCE_SUB_LINK)]])
+        await message.reply("⚠️ **ᴘʟᴇᴀsᴇ ᴊᴏɪɴ ᴏᴜʀ ᴏғғɪᴄɪᴀʟ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴜsᴇ ᴛʜɪs ʙᴏᴛ!**", reply_markup=btn)
+        return False
+    except Exception as e:
+        print(f"FSub Error: {e}")
+        return True
+
 @app.on_message(filters.command("start"))
 async def start(client, message):
+    if not await check_fsub(client, message): return
+        
     user = message.from_user
-    
-    # Error handler for MongoDB and Log Channel so bot doesn't freeze
     try:
         is_new = await db.add_user(user.id, user.first_name, user.last_name, user.username)
         if is_new and Config.LOG_CHANNEL:
