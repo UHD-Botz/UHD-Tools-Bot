@@ -1,5 +1,7 @@
 import requests
 import random
+import html
+from config import Config
 from pyrogram import Client, filters
 
 # --- TEMP MAIL (NEW API) ---
@@ -42,23 +44,89 @@ async def check_inbox(client, message):
         await message.reply(f"❌ **Could not fetch inbox:** `{e}`")
 
 
-# --- NEW BULLETPROOF QUIZ SYSTEM ---
-questions = {"What is 15 * 4?": "60", "Solve: 100 / 4 + 5": "30", "Square root of 144?": "12"}
-
-# Memory dictionary to store active quiz for each user
+# --- NEW EXTREME API QUIZ SYSTEM ---
 active_quizzes = {}
+
+def fetch_extreme_quiz():
+    # APIs ki list jo hum use karenge
+    apis = ['opentdb', 'trivia_api']
+    if Config.QUIZ_API_KEY:
+        apis.append('quizapi')
+    
+    # Randomly kisi ek API ko chuno
+    choice = random.choice(apis)
+    
+    try:
+        if choice == 'opentdb':
+            # OpenTDB - Extreme Hard Multiple Choice
+            res = requests.get("https://opentdb.com/api.php?amount=1&difficulty=hard&type=multiple", timeout=5).json()
+            q = html.unescape(res['results'][0]['question'])
+            correct = html.unescape(res['results'][0]['correct_answer'])
+            options = [html.unescape(x) for x in res['results'][0]['incorrect_answers']]
+            options.append(correct)
+            random.shuffle(options)
+            return q, options, correct
+            
+        elif choice == 'trivia_api':
+            # The Trivia API - Hard Level
+            res = requests.get("https://the-trivia-api.com/v2/questions?limit=1&difficulties=hard", timeout=5).json()
+            q = res[0]['question']['text']
+            correct = res[0]['correctAnswer']
+            options = res[0]['incorrectAnswers'].copy()
+            options.append(correct)
+            random.shuffle(options)
+            return q, options, correct
+            
+        elif choice == 'quizapi':
+            # QuizAPI.io (Requires Key)
+            headers = {'X-Api-Key': Config.QUIZ_API_KEY}
+            res = requests.get("https://quizapi.io/api/v1/questions?limit=1&difficulty=Hard", headers=headers, timeout=5).json()
+            data = res[0]
+            q = data['question']
+            
+            options = []
+            correct = None
+            for key, val in data['answers'].items():
+                if val is not None:
+                    options.append(val)
+                    if data['correct_answers'].get(key + '_correct') == 'true':
+                        correct = val
+            
+            if not correct: return fetch_extreme_quiz() # Fallback
+            return q, options, correct
+            
+    except Exception as e:
+        print(f"Quiz API Error ({choice}): {e}")
+        # Agar API down ho, toh ek default extreme question
+        return "What is the rarest naturally-occurring element in the Earth's crust?", ["Astatine", "Francium", "Berkelium", "Californium"], "Astatine"
 
 @Client.on_message(filters.command("quiz"))
 async def start_quiz(client, message):
     user_id = message.from_user.id
-    q = random.choice(list(questions.keys()))
+    msg = await message.reply("⏳ **Fetching an EXTREME question from Database...**")
     
-    # Bot question ka answer memory mein save kar lega
-    active_quizzes[user_id] = questions[q] 
+    # API se naya question laao
+    q, options, correct = fetch_extreme_quiz()
     
-    await message.reply(
-        f"🧠 **Math Quiz:**\n\n`{q}`\n\n"
-        f"👉 To solve, just send: `/answer <your_value>`\n*(No need to reply to this message)*"
+    # Options ko A, B, C, D mein format karo
+    labels = ['A', 'B', 'C', 'D', 'E']
+    opt_text = ""
+    correct_label = ""
+    
+    for i, opt in enumerate(options):
+        label = labels[i]
+        opt_text += f"**{label})** `{opt}`\n"
+        if opt == correct:
+            correct_label = label
+            
+    # Bot memory mein sirf Sahi Letter (A/B/C/D) save karega
+    active_quizzes[user_id] = correct_label 
+    
+    await msg.edit(
+        f"😈 **EXTREME TRIVIA SURVIVAL:**\n\n"
+        f"❓ `{q}`\n\n"
+        f"{opt_text}\n"
+        f"👉 **How to answer:** Type `/answer A`, `/answer B`, etc."
     )
 
 @Client.on_message(filters.command("answer"))
@@ -66,17 +134,17 @@ async def check_answer(client, message):
     user_id = message.from_user.id
     
     if user_id not in active_quizzes:
-        return await message.reply("⚠️ You don't have an active quiz! Send `/quiz` to start.")
+        return await message.reply("⚠️ You don't have an active question! Send `/quiz` to start.")
         
     if len(message.command) < 2:
-        return await message.reply("⚠️ Usage: `/answer <value>`")
+        return await message.reply("⚠️ Usage example: `/answer A`")
         
-    user_ans = message.command[1]
+    user_ans = message.command[1].upper()
     correct_ans = active_quizzes[user_id]
     
     if user_ans == correct_ans:
-        await message.reply("✅ **Correct Answer!** You are a genius!")
-        del active_quizzes[user_id] # Clear from memory after correct answer
+        await message.reply("✅ **MIND BLOWN! Correct Answer!** 🤯 You are a true genius!")
+        del active_quizzes[user_id] # Game over for this question
     else:
-        await message.reply("❌ **Wrong Answer!** Try again or send `/quiz` for a new question.")
-        
+        await message.reply(f"❌ **WRONG!** The correct answer was **{correct_ans}**.\n\nSend `/quiz` to try another extreme question.")
+        del active_quizzes[user_id] # Delete kar diya taaki cheating na kar sake 2nd try mein!
