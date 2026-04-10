@@ -21,7 +21,7 @@ async def start(client, message):
     
     # Error handler for MongoDB and Log Channel so bot doesn't freeze
     try:
-        is_new = await db.add_user(user.id, user.first_name)
+        is_new = await db.add_user(user.id, user.first_name, user.last_name, user.username)
         if is_new and Config.LOG_CHANNEL:
             await client.send_message(Config.LOG_CHANNEL, f"🚨 New User: {user.mention} (`{user.id}`)")
     except Exception as e:
