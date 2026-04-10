@@ -1,0 +1,11 @@
+pyrogram
+tgcrypto
+motor
+PyPDF2
+pdf2image
+rarfile
+fpdf
+deep-translator
+requests
+flask
+waitress
