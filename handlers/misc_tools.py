@@ -42,27 +42,41 @@ async def check_inbox(client, message):
         await message.reply(f"❌ **Could not fetch inbox:** `{e}`")
 
 
-# --- QUIZ SYSTEM ---
+# --- NEW BULLETPROOF QUIZ SYSTEM ---
 questions = {"What is 15 * 4?": "60", "Solve: 100 / 4 + 5": "30", "Square root of 144?": "12"}
+
+# Memory dictionary to store active quiz for each user
+active_quizzes = {}
 
 @Client.on_message(filters.command("quiz"))
 async def start_quiz(client, message):
+    user_id = message.from_user.id
     q = random.choice(list(questions.keys()))
-    await message.reply(f"🧠 **Math Quiz:**\n`{q}`\n\nReply with: `/answer <your_answer>`")
+    
+    # Bot question ka answer memory mein save kar lega
+    active_quizzes[user_id] = questions[q] 
+    
+    await message.reply(
+        f"🧠 **Math Quiz:**\n\n`{q}`\n\n"
+        f"👉 To solve, just send: `/answer <your_value>`\n*(No need to reply to this message)*"
+    )
 
 @Client.on_message(filters.command("answer"))
 async def check_answer(client, message):
-    if not message.reply_to_message or "Math Quiz:" not in message.reply_to_message.text:
-        return await message.reply("⚠️ Reply to a quiz question with `/answer <your_answer>`")
+    user_id = message.from_user.id
     
-    try:
-        user_ans = message.command[1]
-        question_text = message.reply_to_message.text.split("\n")[1].strip("`")
+    if user_id not in active_quizzes:
+        return await message.reply("⚠️ You don't have an active quiz! Send `/quiz` to start.")
         
-        correct_ans = questions.get(question_text)
-        if user_ans == correct_ans:
-            await message.reply("✅ **Correct Answer!** Brilliant!")
-        else:
-            await message.reply(f"❌ **Wrong!** The correct answer was: `{correct_ans}`")
-    except IndexError:
-        await message.reply("Usage: `/answer <your_answer>`")
+    if len(message.command) < 2:
+        return await message.reply("⚠️ Usage: `/answer <value>`")
+        
+    user_ans = message.command[1]
+    correct_ans = active_quizzes[user_id]
+    
+    if user_ans == correct_ans:
+        await message.reply("✅ **Correct Answer!** You are a genius!")
+        del active_quizzes[user_id] # Clear from memory after correct answer
+    else:
+        await message.reply("❌ **Wrong Answer!** Try again or send `/quiz` for a new question.")
+        
