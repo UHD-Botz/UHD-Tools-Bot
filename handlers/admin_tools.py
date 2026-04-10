@@ -33,6 +33,18 @@ async def ping_cmd(client, message):
     end_t = time.time()
     await rm.edit(f"🏓 **Ping:** `{round((end_t - start_t) * 1000, 2)} ms`")
 
+@Client.on_message(filters.command("stats") & filters.user(Config.ADMIN_ID))
+async def stats_cmd(client, message):
+    msg = await message.reply("⏳ Fetching Statistics...")
+    try:
+        total_users = await db.total_users_count()
+        await msg.edit(
+            f"📊 **Bot Statistics:**\n\n"
+            f"👥 Total Users in Database: `{total_users}`"
+        )
+    except Exception as e:
+        await msg.edit(f"❌ Error fetching stats: `{e}`")
+
 @Client.on_message(filters.command("uptime"))
 async def uptime_cmd(client, message):
     msg = await message.reply("⏳ Fetching Uptime...")
