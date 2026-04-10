@@ -4,6 +4,7 @@ from config import Config
 from keep_alive import keep_alive
 from database.db import db
 import os
+import time
 
 app = Client(
     "UHDToolsBot",
