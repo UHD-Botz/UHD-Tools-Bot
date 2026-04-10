@@ -2,6 +2,7 @@ import requests
 import random
 import html
 from pyrogram import Client, filters
+from config import Config
 
 # --- TEMP MAIL (NEW API) ---
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
@@ -43,16 +44,12 @@ async def check_inbox(client, message):
         await message.reply(f"❌ **Could not fetch inbox:** `{e}`")
 
 
-# --- NEW EXTREME API QUIZ SYSTEM ---
+# --- NEW EXTREME API QUIZ SYSTEM (100% FREE) ---
 active_quizzes = {}
 
 def fetch_extreme_quiz():
-    # APIs ki list jo hum use karenge
+    # Sirf 2 free APIs use karenge bina kisi key ke
     apis = ['opentdb', 'trivia_api']
-    if Config.QUIZ_API_KEY:
-        apis.append('quizapi')
-    
-    # Randomly kisi ek API ko chuno
     choice = random.choice(apis)
     
     try:
@@ -76,24 +73,6 @@ def fetch_extreme_quiz():
             random.shuffle(options)
             return q, options, correct
             
-        elif choice == 'quizapi':
-            # QuizAPI.io (Requires Key)
-            headers = {'X-Api-Key': Config.QUIZ_API_KEY}
-            res = requests.get("https://quizapi.io/api/v1/questions?limit=1&difficulty=Hard", headers=headers, timeout=5).json()
-            data = res[0]
-            q = data['question']
-            
-            options = []
-            correct = None
-            for key, val in data['answers'].items():
-                if val is not None:
-                    options.append(val)
-                    if data['correct_answers'].get(key + '_correct') == 'true':
-                        correct = val
-            
-            if not correct: return fetch_extreme_quiz() # Fallback
-            return q, options, correct
-            
     except Exception as e:
         print(f"Quiz API Error ({choice}): {e}")
         # Agar API down ho, toh ek default extreme question
@@ -108,7 +87,7 @@ async def start_quiz(client, message):
     q, options, correct = fetch_extreme_quiz()
     
     # Options ko A, B, C, D mein format karo
-    labels = ['A', 'B', 'C', 'D', 'E']
+    labels = ['A', 'B', 'C', 'D']
     opt_text = ""
     correct_label = ""
     
