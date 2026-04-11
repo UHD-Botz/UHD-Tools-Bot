@@ -20,7 +20,8 @@ app = Client(
     api_id=Config.API_ID,
     api_hash=Config.API_HASH,
     plugins=dict(root="handlers"),
-    sleep_threshold=120
+    sleep_threshold=120,
+    workers=200
 )
 
 Config.BOT_START_TIME = time.time()
