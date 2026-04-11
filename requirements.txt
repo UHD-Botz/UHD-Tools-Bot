@@ -1,5 +1,4 @@
 pyrogram
-asyncio
 tgcrypto
 motor
 PyPDF2
@@ -13,5 +12,3 @@ waitress
 Pillow
 PyMuPDF
 python-whois
-moviepy
-rembg[cpu]
