@@ -12,3 +12,4 @@ waitress
 Pillow
 PyMuPDF
 python-whois
+uvloop
