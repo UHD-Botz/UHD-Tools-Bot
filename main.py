@@ -26,24 +26,20 @@ app = Client(
 
 Config.BOT_START_TIME = time.time()
 
-# --- FORCE SUB CHECKER (PEER ID FIXED) ---
+# --- FORCE SUB CHECKER ---
 async def check_fsub(client, message):
     if not Config.FORCE_SUB_CHANNEL:
         return True 
     
     try:
-        # 🛡️ PEER ID FIX: Pehle channel ko fetch karo
-        try:
-            await client.get_chat(Config.FORCE_SUB_CHANNEL)
-        except PeerIdInvalid:
-            pass # Agar invalid ho toh ignore karke member check pe jao
-            
         await client.get_chat_member(Config.FORCE_SUB_CHANNEL, message.from_user.id)
         return True
     except UserNotParticipant:
         btn = InlineKeyboardMarkup([[InlineKeyboardButton("📢 ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ", url=Config.FORCE_SUB_LINK)]])
         await message.reply("⚠️ **ᴘʟᴇᴀsᴇ ᴊᴏɪɴ ᴏᴜʀ ᴏғғɪᴄɪᴀʟ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴜsᴇ ᴛʜɪs ʙᴏᴛ!**", reply_markup=btn)
         return False
+    except PeerIdInvalid:
+        return True # Cache error ignore
     except Exception as e:
         print(f"FSub Error: {e}")
         return True
@@ -51,19 +47,20 @@ async def check_fsub(client, message):
 # --- MAIN MENU TEXT & BUTTONS ---
 def get_main_menu():
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📄 PDF Tools", callback_data="help_pdf"),
-         InlineKeyboardButton("🎥 Video Tools", callback_data="help_video")],
-        [InlineKeyboardButton("🔐 Security", callback_data="help_sec"),
-         InlineKeyboardButton("🖼️ Image Tools", callback_data="help_img")],
-        [InlineKeyboardButton("🗜️ Zip/Files", callback_data="help_file"),
-         InlineKeyboardButton("🛠️ Misc Tools", callback_data="help_misc")],
-        [InlineKeyboardButton("💎 Buy Premium (Unlimited)", callback_data="help_prem")]
+        [InlineKeyboardButton("📄 ᴘᴅғ ᴛᴏᴏʟs", callback_data="help_pdf"),
+         InlineKeyboardButton("🎥 ᴠɪᴅᴇᴏ ᴛᴏᴏʟs", callback_data="help_video")],
+        [InlineKeyboardButton("🔐 sᴇᴄᴜʀɪᴛʏ", callback_data="help_sec"),
+         InlineKeyboardButton("🖼️ ɪᴍᴀɢᴇ ᴛᴏᴏʟs", callback_data="help_img")],
+        [InlineKeyboardButton("🗜️ ᴢɪᴘ & ғɪʟᴇs", callback_data="help_file"),
+         InlineKeyboardButton("🛠️ ᴍɪsᴄ ᴛᴏᴏʟs", callback_data="help_misc")],
+        [InlineKeyboardButton("💎 Uɴʟᴏᴄᴋ Pʀᴇᴍɪᴜᴍ (Uɴʟɪᴍɪᴛᴇᴅ)", callback_data="help_prem")]
     ])
     text = (
-        "👋 **Welcome to UHD Tools Bot!**\n\n"
-        "I am your all-in-one powerful utility bot. "
-        "Free users get 5 uses/day per command.\n\n"
-        "👇 **Choose a category below to explore:**"
+        "👋 **Wᴇʟᴄᴏᴍᴇ ᴛᴏ ᴜʜᴅ Tᴏᴏʟs Bᴏᴛ!**\n\n"
+        "ɪ ᴀᴍ ʏᴏᴜʀ ᴀʟʟ-ɪɴ-ᴏɴᴇ ᴘᴏᴡᴇʀғᴜʟ ᴜᴛɪʟɪᴛʏ ʙᴏᴛ."
+        "ᴇxᴘᴇʀɪᴇɴᴄᴇ ᴘʀᴏғᴇssɪᴏɴᴀʟ-ɢʀᴀᴅᴇ ᴜᴛɪʟɪᴛɪᴇs ᴀɴᴅ ᴀɪ ᴛᴏᴏʟs ʀɪɢʜᴛ ʜᴇʀᴇ ɪɴ ᴛᴇʟᴇɢʀᴀᴍ.\n\n"
+        "ғʀᴇᴇ ᴜsᴇʀs ɢᴇᴛ 𝟻 ᴜsᴇs/ᴅᴀʏ ᴘᴇʀ ᴄᴏᴍᴍᴀɴᴅ.\n\n"
+        "👇 **ᴄʜᴏᴏsᴇ ᴀ ᴄᴀᴛᴇɢᴏʀʏ ʙᴇʟᴏᴡ ᴛᴏ ᴇxᴘʟᴏʀᴇ:**"
     )
     return text, buttons
 
