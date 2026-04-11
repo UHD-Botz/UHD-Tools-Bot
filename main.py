@@ -2,6 +2,11 @@ import asyncio
 import uvloop
 import os
 import time
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import UserNotParticipant, PeerIdInvalid
@@ -9,10 +14,6 @@ from config import Config
 from keep_alive import keep_alive
 from database.db import db
 
-
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
 
 app = Client(
     "UHDToolsBot",
