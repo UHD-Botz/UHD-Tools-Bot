@@ -17,11 +17,18 @@ app = Client(
 
 Config.BOT_START_TIME = time.time()
 
-# --- FORCE SUB CHECKER ---
+# --- FORCE SUB CHECKER (PEER ID FIXED) ---
 async def check_fsub(client, message):
     if not Config.FORCE_SUB_CHANNEL:
-        return True # Agar config mein channel nahi diya, toh bypass
+        return True 
+    
     try:
+        # 🛡️ PEER ID FIX: Pehle channel ko fetch karo
+        try:
+            await client.get_chat(Config.FORCE_SUB_CHANNEL)
+        except PeerIdInvalid:
+            pass # Agar invalid ho toh ignore karke member check pe jao
+            
         await client.get_chat_member(Config.FORCE_SUB_CHANNEL, message.from_user.id)
         return True
     except UserNotParticipant:
@@ -31,6 +38,25 @@ async def check_fsub(client, message):
     except Exception as e:
         print(f"FSub Error: {e}")
         return True
+
+# --- MAIN MENU TEXT & BUTTONS ---
+def get_main_menu():
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📄 PDF Tools", callback_data="help_pdf"),
+         InlineKeyboardButton("🎥 Video Tools", callback_data="help_video")],
+        [InlineKeyboardButton("🔐 Security", callback_data="help_sec"),
+         InlineKeyboardButton("🖼️ Image Tools", callback_data="help_img")],
+        [InlineKeyboardButton("🗜️ Zip/Files", callback_data="help_file"),
+         InlineKeyboardButton("🛠️ Misc Tools", callback_data="help_misc")],
+        [InlineKeyboardButton("💎 Buy Premium (Unlimited)", callback_data="help_prem")]
+    ])
+    text = (
+        "👋 **Welcome to UHD Tools Bot!**\n\n"
+        "I am your all-in-one powerful utility bot. "
+        "Free users get 5 uses/day per command.\n\n"
+        "👇 **Choose a category below to explore:**"
+    )
+    return text, buttons
 
 @app.on_message(filters.command("start"))
 async def start(client, message):
@@ -44,38 +70,92 @@ async def start(client, message):
     except Exception as e:
         print(f"DB/Log Error: {e}")
 
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📄 PDF Tools", callback_data="help_pdf"),
-         InlineKeyboardButton("🛠️ Misc Tools", callback_data="help_misc")]
-    ])
-    
-    await message.reply(
-        f"👋 Hello {user.mention}!\n\n"
-        "Welcome to **UHD Tools Bot**. I am your all-in-one free utility bot.\n"
-        "Choose a category below to see available commands:",
-        reply_markup=buttons
-    )
+    text, buttons = get_main_menu()
+    await message.reply(text, reply_markup=buttons)
+
+# --- CALLBACK HANDLERS (MENUS) ---
+
+@app.on_callback_query(filters.regex("help_home"))
+async def go_home(client, callback_query):
+    text, buttons = get_main_menu()
+    await callback_query.message.edit_text(text, reply_markup=buttons)
+
+def back_btn():
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back to Main Menu", callback_data="help_home")]])
 
 @app.on_callback_query(filters.regex("help_pdf"))
 async def help_pdf(client, callback_query):
-    await callback_query.message.edit_text(
-        "📄 **PDF TOOLS**\n"
-        "/pdfsplit - Split a PDF (reply to file)\n"
-        "/pdf2img - Convert PDF to Images\n"
-        "/pdftranslate <lang> - Translate PDF to any language (reply to file)"
+    text = (
+        "📄 **PDF PRO TOOLS**\n\n"
+        "`/pdfsplit` - Extract page 1 from PDF\n"
+        "`/pdf2img` - Convert PDF to Images\n"
+        "`/pdftranslate hi` - Translate PDF\n"
+        "`/pdftext` - Extract text from PDF\n"
+        "`/pdflock pass` - Add password to PDF\n"
+        "`/pdfunlock pass` - Remove PDF password"
     )
+    await callback_query.message.edit_text(text, reply_markup=back_btn())
+
+@app.on_callback_query(filters.regex("help_video"))
+async def help_video(client, callback_query):
+    text = (
+        "🎥 **VIDEO TOOLS**\n\n"
+        "`/v2a` - Extract Audio (MP3) from Video\n"
+        "`/screenshot mm:ss` - Get HD frame from video"
+    )
+    await callback_query.message.edit_text(text, reply_markup=back_btn())
+
+@app.on_callback_query(filters.regex("help_sec"))
+async def help_sec(client, callback_query):
+    text = (
+        "🔐 **SECURITY & WEB**\n\n"
+        "`/whois domain.com` - Get website info\n"
+        "`/password 16` - Generate strong password"
+    )
+    await callback_query.message.edit_text(text, reply_markup=back_btn())
+
+@app.on_callback_query(filters.regex("help_img"))
+async def help_img(client, callback_query):
+    text = (
+        "🖼️ **IMAGE TOOLS**\n\n"
+        "`/removebg` - AI Background Remover\n"
+        "`/write text` - Generate handwritten note"
+    )
+    await callback_query.message.edit_text(text, reply_markup=back_btn())
+
+@app.on_callback_query(filters.regex("help_file"))
+async def help_file(client, callback_query):
+    text = (
+        "🗜️ **FILE & ZIP TOOLS**\n\n"
+        "`/zip` - Compress any file to ZIP\n"
+        "`/unzip` - Extract ZIP/RAR files"
+    )
+    await callback_query.message.edit_text(text, reply_markup=back_btn())
 
 @app.on_callback_query(filters.regex("help_misc"))
 async def help_misc(client, callback_query):
-    await callback_query.message.edit_text(
-        "🛠️ **MISC TOOLS**\n"
-        "/tempmail - Get fake email\n"
-        "/inbox <email> - Check emails\n"
-        "/quiz - Play Math Quiz\n"
-        "/write <topic> - Auto write assignment\n"
-        "/ping - Check Ping\n"
-        "/uptime - Check Live Uptime"
+    text = (
+        "🛠️ **MISC TOOLS**\n\n"
+        "`/tempmail` - Get fake email\n"
+        "`/inbox email` - Check temp emails\n"
+        "`/quiz` - Play Math/Trivia Quiz\n"
+        "`/ping` - Check Bot Ping\n"
+        "`/uptime` - Check Live Uptime"
     )
+    await callback_query.message.edit_text(text, reply_markup=back_btn())
+
+@app.on_callback_query(filters.regex("help_prem"))
+async def help_prem(client, callback_query):
+    text = (
+        "💎 **UHD PREMIUM PLAN**\n\n"
+        "Free users get only 5 limits per command daily. "
+        "Upgrade to Premium to get:\n\n"
+        "✅ **Unlimited Command Usage**\n"
+        "✅ **No Daily Restrictions**\n"
+        "✅ **Priority Processing**\n\n"
+        "Send `/premium` to buy the plan for just 40 Rs!"
+    )
+    await callback_query.message.edit_text(text, reply_markup=back_btn())
 
 if __name__ == "__main__":
     print("Starting Keep Alive Server...")
