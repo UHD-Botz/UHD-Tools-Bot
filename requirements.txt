@@ -11,3 +11,7 @@ requests
 flask
 waitress
 Pillow
+PyMuPDF
+python-whois
+moviepy
+rembg
