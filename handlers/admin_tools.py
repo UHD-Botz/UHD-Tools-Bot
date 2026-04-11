@@ -95,3 +95,25 @@ async def broadcast_cmd(client, message):
         f"❌ Failed/Blocked: `{failed}`\n"
         f"👥 Total Users: `{len(users)}`"
     )
+
+
+@Client.on_callback_query(filters.regex(r"^(approve|reject)_(\d+)$"))
+async def admin_verify_cb(client, callback_query):
+    action, user_id = callback_query.data.split("_")
+    user_id = int(user_id)
+
+    if callback_query.from_user.id != Config.ADMIN_ID:
+        return await callback_query.answer("Only Owner can do this!", show_alert=True)
+
+    if action == "approve":
+        await db.set_premium(user_id, True)
+        await callback_query.message.edit_text(f"✅ **User {user_id} Approved!**")
+        try:
+            await client.send_message(user_id, "🎉 **Payment Verified!** Your Premium has been activated for 30 days. Enjoy Unlimited Access!")
+        except: pass
+    
+    elif action == "reject":
+        await callback_query.message.edit_text(f"❌ **User {user_id} Rejected!**")
+        try:
+            await client.send_message(user_id, "❌ **Payment Verification Failed!** Your UTR was invalid or amount was incorrect. Contact @UHD_ContactBot for help.")
+        except: pass
