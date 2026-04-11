@@ -1,5 +1,6 @@
 import os
 import time
+import asyncio
 from pyrogram import Client, filters
 from PyPDF2 import PdfReader, PdfWriter
 from pdf2image import convert_from_path
