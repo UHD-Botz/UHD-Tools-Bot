@@ -28,7 +28,7 @@ PREMIUM_BUTTONS = InlineKeyboardMarkup([
 @Client.on_message(filters.command("premium"))
 async def premium_cmd(client, message):
     # QR Code image path (Apne bot folder mein qr.jpg naam ki image rakhna)
-    qr_path = "qr.jpg" 
+    qr_path = "qr.png" 
     if os.path.exists(qr_path):
         await message.reply_photo(photo=qr_path, caption=PREMIUM_TEXT, reply_markup=PREMIUM_BUTTONS)
     else:
