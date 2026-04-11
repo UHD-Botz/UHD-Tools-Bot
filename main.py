@@ -1,3 +1,5 @@
+import asyncio
+import uvloop
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import UserNotParticipant, PeerIdInvalid
@@ -6,6 +8,8 @@ from keep_alive import keep_alive
 from database.db import db
 import os
 import time
+
+uvloop.install()
 
 app = Client(
     "UHDToolsBot",
