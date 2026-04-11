@@ -1,7 +1,7 @@
 import os
 import time
+import subprocess # Direct system commands ke liye
 from pyrogram import Client, filters
-from moviepy.editor import VideoFileClip
 from config import Config
 from database.db import db
 from utils.progress import progress_bar
@@ -22,9 +22,10 @@ async def video_to_audio(client, message):
     out_path = f"{Config.DOWNLOAD_DIR}/audio_{user_id}.mp3"
     
     try:
-        await msg.edit("⚙️ **Extracting Audio...**")
-        video = VideoFileClip(file_path)
-        video.audio.write_audiofile(out_path, logger=None) # Silent extraction
+        await msg.edit("⚙️ **Extracting Audio (Lite Mode)...**")
+        # System command se extraction (Very Low RAM Usage)
+        cmd = ["ffmpeg", "-i", file_path, "-q:a", "0", "-map", "a", out_path, "-y"]
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         
         await msg.edit("📤 **Uploading MP3...**")
         await client.send_audio(message.chat.id, out_path, caption="🎵 **Audio Extracted!**\n\n🛡️ @UHDBots")
@@ -51,17 +52,14 @@ async def get_screenshot(client, message):
     out_path = f"{Config.DOWNLOAD_DIR}/ss_{user_id}.jpg"
     
     try:
-        # Simple ffmpeg wrapper via moviepy
-        clip = VideoFileClip(file_path)
-        # Convert mm:ss to seconds
-        min_sec = time_str.split(":")
-        time_sec = int(min_sec[0]) * 60 + int(min_sec[1])
+        # Fast screenshot extract using ffmpeg
+        cmd = ["ffmpeg", "-ss", time_str, "-i", file_path, "-frames:v", "1", "-q:v", "2", out_path, "-y"]
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         
-        clip.save_frame(out_path, t=time_sec)
         await client.send_photo(message.chat.id, out_path, caption=f"📸 **Screenshot at {time_str}**\n\n🛡️ @UHDBots")
         await msg.delete()
         await db.increment_usage(user_id, "screenshot")
-    except Exception as e: await msg.edit(f"❌ **Error or Invalid Time:** `{e}`")
+    except Exception as e: await msg.edit(f"❌ **Invalid Time or Error:** `{e}`")
     finally:
         if os.path.exists(file_path): os.remove(file_path)
         if os.path.exists(out_path): os.remove(out_path)
