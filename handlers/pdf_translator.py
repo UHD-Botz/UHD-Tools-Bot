@@ -5,6 +5,7 @@ from pyrogram import Client, filters
 from PyPDF2 import PdfReader, PdfWriter
 from pdf2image import convert_from_path
 from PIL import Image, ImageDraw, ImageFont
+from fpdf import FPDF
 from deep_translator import GoogleTranslator
 from config import Config
 from database.db import db
