@@ -6,12 +6,14 @@ import shutil
 import asyncio
 from pyrogram import Client, filters
 from config import Config
+from database.db import db
 from utils.progress import progress_bar
 from utils.anti_nsfw import is_nsfw
+from utils.limit_check import is_limited, LIMIT_TEXT, LIMIT_BUTTON
 
 rarfile.UNRAR_TOOL = "unrar"
 
-# Active tasks ko track karne ke liye dictionary
+# Active tasks track karne ke liye
 active_tasks = {}
 
 @Client.on_message(filters.command("cancel"))
@@ -20,33 +22,38 @@ async def cancel_task(client, message):
     if user_id in active_tasks:
         active_tasks[user_id].cancel()
         del active_tasks[user_id]
-        await message.reply("⛔ **Process Cancelled Successfully!** Cleaning up files...")
+        await message.reply("⛔ **Process Cancelled Successfully!**")
     else:
-        await message.reply("⚠️ Tera koi active process nahi chal raha hai jise cancel karu.")
+        await message.reply("⚠️ Tera koi active process nahi chal raha hai.")
 
 # --- UNZIP HANDLER ---
 @Client.on_message(filters.command("unzip"))
 async def unzip_handler(client, message):
     user_id = message.from_user.id
+    
+    # 🚨 LIMIT CHECK
+    if await is_limited(user_id):
+        return await message.reply(LIMIT_TEXT, reply_markup=LIMIT_BUTTON)
+
     if user_id in active_tasks:
         return await message.reply("❌ Pehle purana kaam khatam hone de ya `/cancel` kar.")
 
     if not message.reply_to_message or not message.reply_to_message.document:
         return await message.reply("⚠️ **Please reply to a `.zip` or `.rar` file!**")
 
-    # Start the unzip logic as a background task
     task = asyncio.create_task(unzip_logic(client, message))
     active_tasks[user_id] = task
     
     try:
         await task
     except asyncio.CancelledError:
-        print(f"Unzip task cancelled for {user_id}")
+        pass
     finally:
         if user_id in active_tasks:
             del active_tasks[user_id]
 
 async def unzip_logic(client, message):
+    user_id = message.from_user.id
     doc = message.reply_to_message.document
     if is_nsfw(doc.file_name):
         return await message.reply("🚫 **NSFW Blocked!** Archive name is restricted.")
@@ -75,15 +82,12 @@ async def unzip_logic(client, message):
         files_sent = 0
         for root, dirs, files in os.walk(extract_dir):
             for file_name in files:
-                # Cancel check within loop
-                if asyncio.current_task().cancelled():
-                    return
+                if asyncio.current_task().cancelled(): return
 
                 if "__MACOSX" in root or file_name.startswith('.'):
                     continue
                 
                 full_path = os.path.join(root, file_name)
-                
                 if is_nsfw(file_name):
                     await message.reply(f"🚫 **Skipped NSFW:** `{file_name}`")
                     continue
@@ -98,18 +102,15 @@ async def unzip_logic(client, message):
                         progress_args=(msg, start_time, f"Uploading: {file_name}")
                     )
                     files_sent += 1
-                    
                     if Config.LOG_CHANNEL:
-                        await sent_msg.copy(
-                            Config.LOG_CHANNEL, 
-                            caption=f"👤 By: {message.from_user.mention} (`{message.from_user.id}`)\n📄 File: `{file_name}`"
-                        )
-                except Exception as e:
-                    print(f"Upload Error: {e}")
+                        await sent_msg.copy(Config.LOG_CHANNEL, caption=f"👤 By: {message.from_user.id}")
+                except Exception: pass
 
         await msg.delete()
         if files_sent > 0:
             await message.reply(f"✅ **Done! Sent {files_sent} files.**")
+            # ✅ Task successful, increment usage
+            await db.increment_usage(user_id)
         else:
             await message.reply("❌ **No valid files found inside!**")
 
@@ -124,30 +125,35 @@ async def unzip_logic(client, message):
 @Client.on_message(filters.command("zip"))
 async def zip_handler(client, message):
     user_id = message.from_user.id
+    
+    # 🚨 LIMIT CHECK
+    if await is_limited(user_id):
+        return await message.reply(LIMIT_TEXT, reply_markup=LIMIT_BUTTON)
+
     if user_id in active_tasks:
         return await message.reply("❌ Pehle purana kaam khatam hone de ya `/cancel` kar.")
 
     if not message.reply_to_message or not message.reply_to_message.document:
-        return await message.reply("⚠️ **Please reply to any file with /zip to compress it.**")
+        return await message.reply("⚠️ **Please reply to any file with /zip**")
 
-    # Start the zip logic as a background task
     task = asyncio.create_task(zip_logic(client, message))
     active_tasks[user_id] = task
     
     try:
         await task
     except asyncio.CancelledError:
-        print(f"Zip task cancelled for {user_id}")
+        pass
     finally:
         if user_id in active_tasks:
             del active_tasks[user_id]
 
 async def zip_logic(client, message):
+    user_id = message.from_user.id
     doc = message.reply_to_message.document
     doc_name = doc.file_name or f"file_{int(time.time())}"
     
     if is_nsfw(doc_name):
-        return await message.reply("🚫 **NSFW Blocked!** File name is restricted.")
+        return await message.reply("🚫 **NSFW Blocked!**")
 
     if doc.file_size > 2000 * 1024 * 1024:
         return await message.reply("❌ **File is larger than 2GB.**")
@@ -165,27 +171,23 @@ async def zip_logic(client, message):
 
     try:
         if asyncio.current_task().cancelled(): return
-        
-        await msg.edit("⚙️ **Compressing into ZIP...**")
+        await msg.edit("⚙️ **Compressing...**")
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             zipf.write(file_path, arcname=doc_name)
 
         start_time = time.time()
         sent_msg = await client.send_document(
-            message.chat.id, 
-            zip_path,
-            progress=progress_bar,
-            progress_args=(msg, start_time, "Uploading ZIP...")
+            message.chat.id, zip_path,
+            progress=progress_bar, progress_args=(msg, start_time, "Uploading ZIP...")
         )
         
         if Config.LOG_CHANNEL:
-            await sent_msg.copy(
-                Config.LOG_CHANNEL,
-                caption=f"🗜️ **Zipped File**\n👤 By: {message.from_user.mention}\n📄 Original: `{doc_name}`"
-            )
+            await sent_msg.copy(Config.LOG_CHANNEL, caption=f"🗜️ Zipped by {message.from_user.id}")
             
         await msg.delete()
-        await message.reply("✅ **ZIP Process Complete!**")
+        await message.reply("✅ **ZIP Complete!**")
+        # ✅ Increment usage
+        await db.increment_usage(user_id)
     except Exception as e:
         await msg.edit(f"❌ **Error:** `{e}`")
     finally:
