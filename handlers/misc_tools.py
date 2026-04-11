@@ -1,20 +1,23 @@
 import requests
 import random
 import html
+import asyncio
 from pyrogram import Client, filters
 from config import Config
 from database.db import db
-from utils.limit_check import is_limited, LIMIT_TEXT, LIMIT_BUTTON
+from utils.limit_check import is_limited, LIMIT_TEXT, LIMIT_BUTTON, FSUB_TEXT, FSUB_BUTTON
 
-# --- TEMP MAIL CONFIG ---
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
 @Client.on_message(filters.command("tempmail"))
 async def gen_mail(client, message):
     user_id = message.from_user.id
     
-    # 🚨 COMMAND-WISE LIMIT CHECK (Specific to "tempmail")
-    if await is_limited(user_id, "tempmail"):
+    # 🚨 FSUB & LIMIT CHECK
+    status = await is_limited(user_id, "tempmail", client)
+    if status == "FSUB_REQUIRED":
+        return await message.reply(FSUB_TEXT, reply_markup=FSUB_BUTTON)
+    elif status == True:
         return await message.reply(LIMIT_TEXT.format(cmd="tempmail"), reply_markup=LIMIT_BUTTON)
 
     try:
@@ -26,8 +29,6 @@ async def gen_mail(client, message):
             return await message.reply("❌ API returned empty response. Try again.")
             
         await message.reply(f"📧 **Your Temp Mail:** `{email}`\n\nUse `/inbox {email}` to check messages.")
-        
-        # ✅ Specific Command Usage Increment
         await db.increment_usage(user_id, "tempmail")
         
     except Exception as e:
@@ -35,7 +36,6 @@ async def gen_mail(client, message):
 
 @Client.on_message(filters.command("inbox"))
 async def check_inbox(client, message):
-    # Inbox check ko free rakha hai taaki user mail padh sake
     if len(message.command) < 2:
         return await message.reply("Usage: `/inbox youremail@domain.com`")
     
@@ -54,8 +54,7 @@ async def check_inbox(client, message):
     except Exception as e:
         await message.reply(f"❌ **Could not fetch inbox:** `{e}`")
 
-
-# --- EXTREME QUIZ SYSTEM ---
+# --- QUIZ SYSTEM ---
 active_quizzes = {}
 
 def fetch_extreme_quiz():
@@ -85,8 +84,10 @@ def fetch_extreme_quiz():
 async def start_quiz(client, message):
     user_id = message.from_user.id
     
-    # 🚨 COMMAND-WISE LIMIT CHECK (Specific to "quiz")
-    if await is_limited(user_id, "quiz"):
+    status = await is_limited(user_id, "quiz", client)
+    if status == "FSUB_REQUIRED":
+        return await message.reply(FSUB_TEXT, reply_markup=FSUB_BUTTON)
+    elif status == True:
         return await message.reply(LIMIT_TEXT.format(cmd="quiz"), reply_markup=LIMIT_BUTTON)
 
     msg = await message.reply("⏳ **Fetching an EXTREME question...**")
@@ -102,21 +103,16 @@ async def start_quiz(client, message):
             correct_label = label
             
     active_quizzes[user_id] = correct_label 
-    await msg.edit(
-        f"😈 **EXTREME TRIVIA SURVIVAL:**\n\n❓ `{q}`\n\n{opt_text}\n"
-        f"👉 **How to answer:** Type `/answer A`, `/answer B`, etc."
-    )
-    
-    # ✅ Specific Command Usage Increment
+    await msg.edit(f"😈 **EXTREME TRIVIA SURVIVAL:**\n\n❓ `{q}`\n\n{opt_text}\n👉 **How to answer:** Type `/answer A`")
     await db.increment_usage(user_id, "quiz")
 
 @Client.on_message(filters.command("answer"))
 async def check_answer(client, message):
     user_id = message.from_user.id
     if user_id not in active_quizzes:
-        return await message.reply("⚠️ You don't have an active question! Send `/quiz` to start.")
+        return await message.reply("⚠️ No active quiz! Send `/quiz` to start.")
     if len(message.command) < 2:
-        return await message.reply("⚠️ Usage example: `/answer A`")
+        return await message.reply("⚠️ Usage: `/answer A`")
         
     user_ans = message.command[1].upper()
     correct_ans = active_quizzes[user_id]
@@ -126,5 +122,4 @@ async def check_answer(client, message):
         await db.update_score(user_id, 10)
     else:
         await message.reply(f"❌ **WRONG!** The correct answer was **{correct_ans}**.")
-    
     del active_quizzes[user_id]
