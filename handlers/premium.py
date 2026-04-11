@@ -44,26 +44,41 @@ async def verify_cb(client, callback_query):
     )
 
 # --- UTR COLLECTION ---
-@Client.on_message(filters.reply & filters.text)
+@Client.on_message(filters.reply & filters.text & filters.private)
 async def utr_receiver(client, message):
+    # 🛡️ Safety Check: Check if reply_to_message exists and HAS text
+    if not message.reply_to_message or not message.reply_to_message.text:
+        return
+
+    # Check if the replied message is actually asking for UTR
     if "sᴇɴᴅ ʏᴏᴜʀ ᴜᴛʀ" in message.reply_to_message.text:
         utr_id = message.text
         user = message.from_user
         
-        await message.reply_text("⏳ **Your UTR has been sent to Admin for verification. Please wait!**")
+        # User ko confirmation message
+        await message.reply_text(
+            "⏳ **Your UTR has been sent to Admin for verification. Please wait!**"
+        )
         
         # Log Channel Alert with Approve/Reject Buttons
         log_btns = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Approve", callback_data=f"approve_{user.id}"),
-             InlineKeyboardButton("❌ Reject", callback_data=f"reject_{user.id}")]
+            [
+                InlineKeyboardButton("✅ Approve", callback_data=f"approve_{user.id}"),
+                InlineKeyboardButton("❌ Reject", callback_data=f"reject_{user.id}")
+            ]
         ])
         
-        await client.send_message(
-            Config.LOG_CHANNEL,
-            f"💰 **NEW PAYMENT ALERT**\n\n"
-            f"👤 **User:** {user.mention} (`{user.id}`)\n"
-            f"🆔 **UTR:** `{utr_id}`\n"
-            f"💵 **Amount:** 40 Rs.\n\n"
-            f"Verify the UTR in your bank/app and take action below:",
-            reply_markup=log_btns
-        )
+        try:
+            # Log Channel mein Admin ko alert bhejo
+            await client.send_message(
+                Config.LOG_CHANNEL,
+                f"💰 **NEW PAYMENT ALERT**\n\n"
+                f"👤 **User:** {user.mention} (`{user.id}`)\n"
+                f"🆔 **UTR:** `{utr_id}`\n"
+                f"💵 **Amount:** 40 Rs.\n\n"
+                f"Verify the UTR in your bank/app and take action below:",
+                reply_markup=log_btns
+            )
+        except Exception as e:
+            print(f"❌ Error sending UTR to Log Channel: {e}")
+            
