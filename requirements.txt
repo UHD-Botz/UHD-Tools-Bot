@@ -14,4 +14,4 @@ Pillow
 PyMuPDF
 python-whois
 moviepy
-rembg
+rembg[cpu]
