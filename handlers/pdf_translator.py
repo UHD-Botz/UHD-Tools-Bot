@@ -16,9 +16,9 @@ LANG_MAP = {"hindi": "hi", "english": "en", "spanish": "es", "french": "fr", "be
 async def translate_pdf(client, message):
     user_id = message.from_user.id
     
-    # 🚨 LIMIT CHECK
-    if await is_limited(user_id):
-        return await message.reply(LIMIT_TEXT, reply_markup=LIMIT_BUTTON)
+    # 🚨 COMMAND-WISE LIMIT CHECK (Specific to "pdftranslate")
+    if await is_limited(user_id, "pdftranslate"):
+        return await message.reply(LIMIT_TEXT.format(cmd="pdftranslate"), reply_markup=LIMIT_BUTTON)
 
     if len(message.command) < 2 or not message.reply_to_message or not message.reply_to_message.document:
         return await message.reply("⚠️ Reply to a PDF with `/pdftranslate hindi` or `/pdftranslate hi`")
@@ -43,14 +43,13 @@ async def translate_pdf(client, message):
         pdf = FPDF()
         pdf.add_page()
         
-        # Note: Standard FPDF doesn't support Hindi/Bengali without .ttf font files.
-        # We use Arial for basic Latin languages.
+        # Standard Arial font (Only for Latin scripts)
         pdf.set_font("Arial", size=12)
         
         translator = GoogleTranslator(source='auto', target=lang_code)
         
         total_pages = len(reader.pages)
-        # 🛡️ Safety: Only translate first 3 pages to prevent timeout on free server
+        # 🛡️ Safety: Only translate first 3 pages
         pages_to_translate = min(total_pages, 3)
 
         for i in range(pages_to_translate):
@@ -58,7 +57,6 @@ async def translate_pdf(client, message):
             text = reader.pages[i].extract_text()
             
             if text:
-                # Chunking text for API limits (Max 4500 chars)
                 chunks = [text[j:j+4000] for j in range(0, len(text), 4000)]
                 for chunk in chunks:
                     translated = translator.translate(chunk)
@@ -82,8 +80,9 @@ async def translate_pdf(client, message):
             await sent_msg.copy(Config.LOG_CHANNEL, caption=f"🌐 PDF Translated by {user_id}")
 
         await msg.delete()
-        # ✅ Increment usage
-        await db.increment_usage(user_id)
+        
+        # ✅ Specific Command Usage Increment
+        await db.increment_usage(user_id, "pdftranslate")
 
     except Exception as e:
         await msg.edit(f"❌ **Translation Error:** `{e}`")
