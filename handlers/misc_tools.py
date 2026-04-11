@@ -13,9 +13,9 @@ HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 async def gen_mail(client, message):
     user_id = message.from_user.id
     
-    # 🚨 LIMIT CHECK
-    if await is_limited(user_id):
-        return await message.reply(LIMIT_TEXT, reply_markup=LIMIT_BUTTON)
+    # 🚨 COMMAND-WISE LIMIT CHECK (Specific to "tempmail")
+    if await is_limited(user_id, "tempmail"):
+        return await message.reply(LIMIT_TEXT.format(cmd="tempmail"), reply_markup=LIMIT_BUTTON)
 
     try:
         url = "https://api.internal.temp-mail.io/api/v3/email/new"
@@ -27,14 +27,15 @@ async def gen_mail(client, message):
             
         await message.reply(f"📧 **Your Temp Mail:** `{email}`\n\nUse `/inbox {email}` to check messages.")
         
-        # ✅ Increment usage after successful generation
-        await db.increment_usage(user_id)
+        # ✅ Specific Command Usage Increment
+        await db.increment_usage(user_id, "tempmail")
         
     except Exception as e:
         await message.reply(f"❌ **TempMail API Error:** `{e}`")
 
 @Client.on_message(filters.command("inbox"))
 async def check_inbox(client, message):
+    # Inbox check ko free rakha hai taaki user mail padh sake
     if len(message.command) < 2:
         return await message.reply("Usage: `/inbox youremail@domain.com`")
     
@@ -84,9 +85,9 @@ def fetch_extreme_quiz():
 async def start_quiz(client, message):
     user_id = message.from_user.id
     
-    # 🚨 LIMIT CHECK
-    if await is_limited(user_id):
-        return await message.reply(LIMIT_TEXT, reply_markup=LIMIT_BUTTON)
+    # 🚨 COMMAND-WISE LIMIT CHECK (Specific to "quiz")
+    if await is_limited(user_id, "quiz"):
+        return await message.reply(LIMIT_TEXT.format(cmd="quiz"), reply_markup=LIMIT_BUTTON)
 
     msg = await message.reply("⏳ **Fetching an EXTREME question...**")
     q, options, correct = fetch_extreme_quiz()
@@ -105,8 +106,9 @@ async def start_quiz(client, message):
         f"😈 **EXTREME TRIVIA SURVIVAL:**\n\n❓ `{q}`\n\n{opt_text}\n"
         f"👉 **How to answer:** Type `/answer A`, `/answer B`, etc."
     )
-    # ✅ Count as one usage
-    await db.increment_usage(user_id)
+    
+    # ✅ Specific Command Usage Increment
+    await db.increment_usage(user_id, "quiz")
 
 @Client.on_message(filters.command("answer"))
 async def check_answer(client, message):
@@ -121,7 +123,6 @@ async def check_answer(client, message):
     
     if user_ans == correct_ans:
         await message.reply("✅ **MIND BLOWN! Correct Answer!** 🤯")
-        # Points system update (Optional)
         await db.update_score(user_id, 10)
     else:
         await message.reply(f"❌ **WRONG!** The correct answer was **{correct_ans}**.")
