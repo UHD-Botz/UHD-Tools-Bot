@@ -17,7 +17,7 @@ class Config:
     
     # --- FORCE SUBSCRIBE SETTINGS ---
     # Isse string se number mein convert kar diya hai
-    FORCE_SUB_CHANNEL = int(os.environ.get("FORCE_SUB_CHANNEL", "-1003149876834")) 
+    FORCE_SUB_CHANNEL = os.environ.get("FORCE_SUB_CHANNEL", "@UHDBots") 
     FORCE_SUB_LINK = os.environ.get("FORCE_SUB_LINK", "https://t.me/UHDBots")
     
     # --- DATABASE & STORAGE ---
