@@ -1,6 +1,7 @@
 pyrogram
 tgcrypto
 motor
+aiohttp
 PyPDF2
 pdf2image
 rarfile
