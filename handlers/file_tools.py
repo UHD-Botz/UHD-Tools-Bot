@@ -31,9 +31,9 @@ async def cancel_task(client, message):
 async def unzip_handler(client, message):
     user_id = message.from_user.id
     
-    # 🚨 LIMIT CHECK
-    if await is_limited(user_id):
-        return await message.reply(LIMIT_TEXT, reply_markup=LIMIT_BUTTON)
+    # 🚨 COMMAND-WISE LIMIT CHECK (Specific to "unzip")
+    if await is_limited(user_id, "unzip"):
+        return await message.reply(LIMIT_TEXT.format(cmd="unzip"), reply_markup=LIMIT_BUTTON)
 
     if user_id in active_tasks:
         return await message.reply("❌ Pehle purana kaam khatam hone de ya `/cancel` kar.")
@@ -109,8 +109,8 @@ async def unzip_logic(client, message):
         await msg.delete()
         if files_sent > 0:
             await message.reply(f"✅ **Done! Sent {files_sent} files.**")
-            # ✅ Task successful, increment usage
-            await db.increment_usage(user_id)
+            # ✅ Specific Command Usage Increment
+            await db.increment_usage(user_id, "unzip")
         else:
             await message.reply("❌ **No valid files found inside!**")
 
@@ -126,9 +126,9 @@ async def unzip_logic(client, message):
 async def zip_handler(client, message):
     user_id = message.from_user.id
     
-    # 🚨 LIMIT CHECK
-    if await is_limited(user_id):
-        return await message.reply(LIMIT_TEXT, reply_markup=LIMIT_BUTTON)
+    # 🚨 COMMAND-WISE LIMIT CHECK (Specific to "zip")
+    if await is_limited(user_id, "zip"):
+        return await message.reply(LIMIT_TEXT.format(cmd="zip"), reply_markup=LIMIT_BUTTON)
 
     if user_id in active_tasks:
         return await message.reply("❌ Pehle purana kaam khatam hone de ya `/cancel` kar.")
@@ -186,8 +186,8 @@ async def zip_logic(client, message):
             
         await msg.delete()
         await message.reply("✅ **ZIP Complete!**")
-        # ✅ Increment usage
-        await db.increment_usage(user_id)
+        # ✅ Specific Command Usage Increment
+        await db.increment_usage(user_id, "zip")
     except Exception as e:
         await msg.edit(f"❌ **Error:** `{e}`")
     finally:
