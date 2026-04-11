@@ -48,9 +48,6 @@ async def stats_cmd(client, message):
 @Client.on_message(filters.command("uptime"))
 async def uptime_cmd(client, message):
     msg = await message.reply("⏳ Fetching Uptime...")
-    
-    # NOTE: Telegram limits API edits. Lagatar edit karne se bot ban/FloodWait ho sakta hai.
-    # Isliye ye 15 sec ke gap par 4 baar (1 minute) tak live update dega aur fir ruk jayega.
     for _ in range(4):
         try:
             uptime_seconds = int(time.time() - Config.BOT_START_TIME)
@@ -81,13 +78,13 @@ async def broadcast_cmd(client, message):
         try:
             await message.reply_to_message.copy(chat_id=user['_id'])
             successful += 1
-            await asyncio.sleep(0.1) # Safe delay to prevent FloodWait limit
+            await asyncio.sleep(0.1)
         except FloodWait as e:
             await asyncio.sleep(e.value)
             await message.reply_to_message.copy(chat_id=user['_id'])
             successful += 1
         except Exception:
-            failed += 1 # User blocked bot or account deleted
+            failed += 1
 
     await msg.edit(
         f"📣 **Broadcast Completed!**\n\n"
@@ -96,6 +93,39 @@ async def broadcast_cmd(client, message):
         f"👥 Total Users: `{len(users)}`"
     )
 
+# --- MANUAL PREMIUM CONTROLS ---
+
+@Client.on_message(filters.command("addpremium") & filters.user(Config.ADMIN_ID))
+async def add_premium_manual(client, message):
+    if len(message.command) < 2:
+        return await message.reply("⚠️ **Usage:** `/addpremium <user_id>`")
+    
+    try:
+        user_id = int(message.command[1])
+        await db.set_premium(user_id, True)
+        await message.reply(f"✅ **User `{user_id}` has been promoted to Premium!**")
+        try:
+            await client.send_message(user_id, "🎉 **Congratulations!** Admin has manually activated your Premium. Enjoy unlimited access!")
+        except: pass
+    except ValueError:
+        await message.reply("❌ Invalid User ID. Make sure it's a number.")
+
+@Client.on_message(filters.command("removepremium") & filters.user(Config.ADMIN_ID))
+async def remove_premium_manual(client, message):
+    if len(message.command) < 2:
+        return await message.reply("⚠️ **Usage:** `/removepremium <user_id>`")
+    
+    try:
+        user_id = int(message.command[1])
+        await db.set_premium(user_id, False)
+        await message.reply(f"❌ **User `{user_id}` Premium has been removed.**")
+        try:
+            await client.send_message(user_id, "⚠️ **Notice:** Your Premium access has been removed by the Admin.")
+        except: pass
+    except ValueError:
+        await message.reply("❌ Invalid User ID. Make sure it's a number.")
+
+# --- PAYMENT VERIFICATION CALLBACKS ---
 
 @Client.on_callback_query(filters.regex(r"^(approve|reject)_(\d+)$"))
 async def admin_verify_cb(client, callback_query):
@@ -109,7 +139,7 @@ async def admin_verify_cb(client, callback_query):
         await db.set_premium(user_id, True)
         await callback_query.message.edit_text(f"✅ **User {user_id} Approved!**")
         try:
-            await client.send_message(user_id, "🎉 **Payment Verified!** Your Premium has been activated for 30 days. Enjoy Unlimited Access!")
+            await client.send_message(user_id, "🎉 **Payment Verified!** Your Premium has been activated. Enjoy Unlimited Access!")
         except: pass
     
     elif action == "reject":
