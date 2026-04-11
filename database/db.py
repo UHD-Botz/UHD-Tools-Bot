@@ -40,30 +40,27 @@ class Database:
 
     # --- 💎 PREMIUM & LIMIT METHODS ---
 
-    async def get_user_status(self, user_id):
-        """User ka premium status aur usage count nikalne ke liye"""
+    async def get_user_status(self, user_id, command_name):
         user = await self.users.find_one({"_id": user_id})
         if user:
-            # Agar purane user ke DB mein ye fields nahi hain, toh default return karo
             is_premium = user.get("is_premium", False)
-            usage = user.get("usage_count", 0)
-            return is_premium, usage
+            # Har command ka alag count nikalega
+            usage_dict = user.get("usage_dict", {})
+            cmd_usage = usage_dict.get(command_name, 0)
+            return is_premium, cmd_usage
         return False, 0
 
-    async def increment_usage(self, user_id):
-        """Har task ke baad usage count badhane ke liye"""
-        await self.users.update_one({"_id": user_id}, {"$inc": {"usage_count": 1}})
-
-    async def set_premium(self, user_id, status=True):
-        """User ko premium dene ya hatane ke liye"""
+    async def increment_usage(self, user_id, command_name):
+        # Specific command ka count +1 karega
         await self.users.update_one(
             {"_id": user_id}, 
-            {"$set": {"is_premium": status, "usage_count": 0}}
+            {"$inc": {f"usage_dict.{command_name}": 1}}
         )
 
     async def reset_daily_usage(self):
-        """Saare free users ka limit reset karne ke liye"""
-        await self.users.update_many({}, {"$set": {"usage_count": 0}})
+        # Poori dictionary khali kar dega
+        await self.users.update_many({}, {"$set": {"usage_dict": {}}})
+        
 
     # --- 🧠 QUIZ SCORE METHODS ---
     async def update_score(self, user_id, points):
