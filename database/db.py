@@ -38,6 +38,14 @@ class Database:
             )
             return False
 
+# Ise apni Database class ke andar add karna hai
+    async def set_premium(self, user_id: int, status: bool):
+        await self.users.update_one(
+            {"_id": user_id},
+            {"$set": {"is_premium": status}},
+            upsert=True
+        )
+    
     # --- 💎 PREMIUM & LIMIT METHODS ---
 
     async def get_user_status(self, user_id, command_name):
