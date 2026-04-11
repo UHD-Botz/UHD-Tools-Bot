@@ -10,6 +10,61 @@ from database.db import db
 from utils.progress import progress_bar
 from utils.limit_check import is_limited, LIMIT_TEXT, LIMIT_BUTTON
 
+# --- PDF SPLIT (PAGE 1 EXTRACTION) ---
+@Client.on_message(filters.command(["pdfsplit", "pdfspilt"]))
+async def split_pdf(client, message):
+    user_id = message.from_user.id
+    
+    # Force Peer Check taaki FSub wala error na aaye
+    try:
+        await client.get_chat(Config.LOG_CHANNEL)
+    except: pass
+
+    if await is_limited(user_id, "pdfsplit"):
+        return await message.reply(LIMIT_TEXT.format(cmd="pdfsplit"), reply_markup=LIMIT_BUTTON)
+
+    if not message.reply_to_message or not message.reply_to_message.document:
+        return await message.reply("⚠️ **Reply to a PDF file with `/pdfsplit`**")
+    
+    msg = await message.reply("⏳ **Processing PDF...**")
+    start_time = time.time()
+    
+    try:
+        file_path = await message.reply_to_message.download(
+            file_name=f"{Config.DOWNLOAD_DIR}/split_{user_id}.pdf",
+            progress=progress_bar,
+            progress_args=(msg, start_time, "Downloading...")
+        )
+        
+        await asyncio.sleep(2) # Disk write safety gap
+        out_path = f"{Config.DOWNLOAD_DIR}/final_split_{user_id}.pdf"
+        
+        reader = PdfReader(file_path)
+        writer = PdfWriter()
+        writer.add_page(reader.pages[0])
+        
+        with open(out_path, "wb") as f:
+            writer.write(f)
+            
+        await msg.edit("📤 **Uploading...**")
+        sent_msg = await client.send_document(
+            message.chat.id, 
+            out_path, 
+            caption="📑 **Page 1 Extracted Successfully!**\n\n🛡️ @UHDBots",
+        )
+        
+        if Config.LOG_CHANNEL:
+            await sent_msg.copy(Config.LOG_CHANNEL, caption=f"📑 Split by {user_id}")
+
+        await msg.delete()
+        await db.increment_usage(user_id, "pdfsplit")
+        
+    except Exception as e:
+        await msg.edit(f"❌ **Error:** `{e}`")
+    finally:
+        if 'file_path' in locals() and os.path.exists(file_path): os.remove(file_path)
+        if 'out_path' in locals() and os.path.exists(out_path): os.remove(out_path)
+
 # --- PDF TO IMAGES (BIG WATERMARK) ---
 @Client.on_message(filters.command("pdf2img"))
 async def pdf_to_img(client, message):
