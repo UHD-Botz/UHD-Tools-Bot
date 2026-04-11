@@ -13,9 +13,9 @@ from utils.limit_check import is_limited, LIMIT_TEXT, LIMIT_BUTTON
 async def split_pdf(client, message):
     user_id = message.from_user.id
     
-    # 🚨 LIMIT CHECK
-    if await is_limited(user_id):
-        return await message.reply(LIMIT_TEXT, reply_markup=LIMIT_BUTTON)
+    # 🚨 COMMAND-WISE LIMIT CHECK (Specific to "pdfsplit")
+    if await is_limited(user_id, "pdfsplit"):
+        return await message.reply(LIMIT_TEXT.format(cmd="pdfsplit"), reply_markup=LIMIT_BUTTON)
 
     if not message.reply_to_message or not message.reply_to_message.document:
         return await message.reply("⚠️ **Please reply to a PDF file with `/pdfsplit`**")
@@ -64,8 +64,9 @@ async def split_pdf(client, message):
             await sent_msg.copy(Config.LOG_CHANNEL, caption=f"📑 PDF Split by {user_id}")
             
         await msg.delete()
-        # ✅ Increment usage
-        await db.increment_usage(user_id)
+        
+        # ✅ Specific Command Usage Increment
+        await db.increment_usage(user_id, "pdfsplit")
         
     except Exception as e:
         await msg.edit(f"❌ **Error Splitting PDF:** `{str(e)}`")
@@ -78,9 +79,9 @@ async def split_pdf(client, message):
 async def pdf_to_img(client, message):
     user_id = message.from_user.id
     
-    # 🚨 LIMIT CHECK
-    if await is_limited(user_id):
-        return await message.reply(LIMIT_TEXT, reply_markup=LIMIT_BUTTON)
+    # 🚨 COMMAND-WISE LIMIT CHECK (Specific to "pdf2img")
+    if await is_limited(user_id, "pdf2img"):
+        return await message.reply(LIMIT_TEXT.format(cmd="pdf2img"), reply_markup=LIMIT_BUTTON)
 
     if not message.reply_to_message or not message.reply_to_message.document:
         return await message.reply("⚠️ Reply to a PDF file with /pdf2img.")
@@ -95,7 +96,6 @@ async def pdf_to_img(client, message):
     )
     
     try:
-        # Convert first 5 pages
         images = convert_from_path(file_path, first_page=1, last_page=5)
         
         for i, image in enumerate(images):
@@ -106,8 +106,9 @@ async def pdf_to_img(client, message):
             
         await msg.delete()
         await message.reply("✅ **Successfully converted first 5 pages!**")
-        # ✅ Increment usage
-        await db.increment_usage(user_id)
+        
+        # ✅ Specific Command Usage Increment
+        await db.increment_usage(user_id, "pdf2img")
         
     except Exception as e:
         await msg.edit(f"❌ Error: Ensure poppler is installed on server.\n`{e}`")
