@@ -3,6 +3,7 @@ import time
 import asyncio
 from pyrogram import Client, filters
 from PyPDF2 import PdfReader, PdfWriter
+from PIL import Image, ImageDraw, ImageFont
 from pdf2image import convert_from_path
 from config import Config
 from database.db import db
@@ -60,43 +61,50 @@ async def split_pdf(client, message):
         if os.path.exists(file_path): os.remove(file_path)
         if os.path.exists(out_path): os.remove(out_path)
 
-# --- PDF TO IMAGES ---
 @Client.on_message(filters.command("pdf2img"))
 async def pdf_to_img(client, message):
     user_id = message.from_user.id
-    
-    # 🚨 COMMAND-WISE LIMIT CHECK (Specific to "pdf2img")
     if await is_limited(user_id, "pdf2img"):
         return await message.reply(LIMIT_TEXT.format(cmd="pdf2img"), reply_markup=LIMIT_BUTTON)
 
     if not message.reply_to_message or not message.reply_to_message.document:
         return await message.reply("⚠️ Reply to a PDF file with /pdf2img.")
     
-    msg = await message.reply("⏳ **Converting PDF to Images (Max 5 pages)...**")
+    msg = await message.reply("⏳ **Converting PDF to Images...**")
     start_time = time.time()
     
     file_path = await message.reply_to_message.download(
-        file_name=f"{Config.DOWNLOAD_DIR}/",
+        file_name=f"{Config.DOWNLOAD_DIR}/pdf_img_{user_id}.pdf",
         progress=progress_bar,
         progress_args=(msg, start_time, "Downloading...")
     )
     
+    await asyncio.sleep(2) # Fix for "Ruka hua" issue
+
     try:
         images = convert_from_path(file_path, first_page=1, last_page=5)
         
         for i, image in enumerate(images):
-            img_path = f"{Config.DOWNLOAD_DIR}/page_{i}.jpg"
+            img_path = f"{Config.DOWNLOAD_DIR}/page_{i}_{user_id}.jpg"
+            
+            # 🏷️ IMAGE WATERMARK LOGIC
+            draw = ImageDraw.Draw(image)
+            # Yahan hum text likh rahe hain (Position: Bottom-Right)
+            # Width aur Height ke hisaab se adjust
+            width, height = image.size
+            text = "@UHDBots"
+            
+            # Drawing a small semi-transparent rectangle or just text
+            draw.text((width - 150, height - 50), text, fill=(128, 128, 128)) 
+            
             image.save(img_path, 'JPEG')
-            await client.send_photo(message.chat.id, img_path, caption=f"Page {i+1}")
+            await client.send_photo(message.chat.id, img_path, caption=f"Page {i+1} | @UHDBots")
             os.remove(img_path)
             
         await msg.delete()
-        await message.reply("✅ **Successfully converted first 5 pages!**")
-        
-        # ✅ Specific Command Usage Increment
         await db.increment_usage(user_id, "pdf2img")
         
     except Exception as e:
-        await msg.edit(f"❌ Error: Ensure poppler is installed on server.\n`{e}`")
+        await msg.edit(f"❌ Error: {e}")
     finally:
         if os.path.exists(file_path): os.remove(file_path)
